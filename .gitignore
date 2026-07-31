@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# Vite / TS cache
+.vite/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Editor / OS
+.DS_Store
