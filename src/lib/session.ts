@@ -174,6 +174,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   const helloTampered = receivedClientHello !== sentClientHello;
 
   log.add({
+    id: "client-hello",
     phase: "handshake",
     from: "client",
     to: "server",
@@ -200,6 +201,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
 
   if (helloTampered) {
     log.add({
+      id: "hello-tampered",
       phase: "handshake",
       from: "attacker",
       to: "server",
@@ -249,6 +251,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   });
 
   log.add({
+    id: "server-hello",
     phase: "handshake",
     from: "server",
     to: "client",
@@ -303,6 +306,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
     : "長期鍵を使い回しているため、その鍵が将来漏れれば同じ計算を誰でも再現できてしまう。";
 
   log.add({
+    id: "ecdhe",
     phase: "key-exchange",
     from: "client",
     to: "client",
@@ -327,6 +331,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   const serverHs = await deriveHandshake(serverShared, serverHelloHash);
 
   log.add({
+    id: "key-schedule",
     phase: "key-exchange",
     from: "client",
     to: "client",
@@ -347,6 +352,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
 
   if (!timingSafeEqual(clientHelloHash, serverHelloHash)) {
     log.add({
+      id: "transcript-mismatch",
       phase: "handshake",
       from: "client",
       to: "client",
@@ -412,6 +418,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   const opened = await clientHsIn.open(flightRecord);
   if (!opened.ok) {
     log.add({
+      id: "flight-locked",
       phase: "handshake",
       from: "server",
       to: "client",
@@ -428,6 +435,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
 
   const leaf = server.certificateChain[0];
   log.add({
+    id: "certificate",
     phase: "certificate",
     from: "server",
     to: "client",
@@ -459,6 +467,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   });
 
   log.add({
+    id: "chain-verify",
     phase: "certificate",
     from: "client",
     to: "client",
@@ -488,6 +497,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
     );
 
     log.add({
+      id: "cert-verify",
       phase: "certificate",
       from: "client",
       to: "client",
@@ -510,6 +520,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
     if (!signatureValid) return abort("CertificateVerify の署名が証明書の公開鍵と一致しない");
   } else {
     log.add({
+      id: "cert-verify",
       phase: "certificate",
       from: "client",
       to: "client",
@@ -542,6 +553,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   const finishedOpened = await clientHsIn.open(finishedRecord);
   if (!finishedOpened.ok) {
     log.add({
+      id: "finished-locked",
       phase: "handshake",
       from: "server",
       to: "client",
@@ -559,6 +571,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
 
   if (defenses.finishedVerify) {
     log.add({
+      id: "server-finished",
       phase: "handshake",
       from: "server",
       to: "client",
@@ -580,6 +593,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
     }
   } else {
     log.add({
+      id: "server-finished",
       phase: "handshake",
       from: "server",
       to: "client",
@@ -604,6 +618,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
 
   const clientVerifyData = await finishedVerifyData(clientHs.clientSecret, appHashClient);
   log.add({
+    id: "client-finished",
     phase: "handshake",
     from: "client",
     to: "server",
@@ -624,6 +639,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   );
 
   log.add({
+    id: "app-keys",
     phase: "encryption",
     from: "client",
     to: "client",
@@ -659,6 +675,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   records.push({ direction: "client→server", label: "HTTP リクエスト", record: requestRecord });
 
   log.add({
+    id: "http-request",
     phase: "https",
     from: "client",
     to: "server",
@@ -701,6 +718,7 @@ export async function runSession(scenario: SessionScenario): Promise<SessionResu
   }
 
   log.add({
+    id: "http-response",
     phase: "https",
     from: "server",
     to: "client",

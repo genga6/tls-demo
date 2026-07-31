@@ -161,6 +161,30 @@ export const ACTOR_LABELS: Record<Actor, string> = {
 export type StepStatus = "ok" | "skipped" | "failed" | "danger";
 
 /**
+ * ステップの識別子。
+ *
+ * 画面側がやさしい日本語の解説を引き当てるための鍵。表示文言を変えても
+ * 対応関係が崩れないよう、タイトルではなくこの ID で引く。
+ */
+export type StepId =
+  | "client-hello"
+  | "hello-tampered"
+  | "server-hello"
+  | "ecdhe"
+  | "key-schedule"
+  | "transcript-mismatch"
+  | "flight-locked"
+  | "certificate"
+  | "chain-verify"
+  | "cert-verify"
+  | "finished-locked"
+  | "server-finished"
+  | "client-finished"
+  | "app-keys"
+  | "http-request"
+  | "http-response";
+
+/**
  * ハンドシェイクの 1 ステップ。
  *
  * 通信（from → to）と、その場での検証・計算の両方をこの型で表す。
@@ -169,6 +193,8 @@ export type StepStatus = "ok" | "skipped" | "failed" | "danger";
 export interface FlowStep {
   /** 表示順に振られる 1 始まりの番号。 */
   index: number;
+  /** どの手順かを示す識別子。画面側の解説文と対応する。 */
+  id: StepId;
   phase: Phase;
   from: Actor;
   to: Actor;

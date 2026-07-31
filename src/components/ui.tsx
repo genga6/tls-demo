@@ -1,156 +1,216 @@
-/** デモ画面で使い回す小さな表示部品。 */
+/** 盤面で使い回す小さな部品。見た目の定義は index.css の .panel / .btn / .pill に置いてある。 */
 
 import type { ReactNode } from "react";
-import { PHASE_LABELS, type Phase } from "../lib/types";
 
-type Tone = "ok" | "warn" | "danger" | "muted" | "info";
+type Tone = "safe" | "open" | "alarm" | "muted" | "accent";
 
-const TONE_CLASSES: Record<Tone, string> = {
-  ok: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30",
-  warn: "bg-amber-500/10 text-amber-300 ring-amber-500/30",
-  danger: "bg-rose-500/10 text-rose-300 ring-rose-500/30",
-  muted: "bg-slate-500/10 text-slate-400 ring-slate-500/30",
-  info: "bg-sky-500/10 text-sky-300 ring-sky-500/30",
+const PILL_TONES: Record<Tone, string> = {
+  safe: "bg-safe-soft text-safe border-safe/40",
+  open: "bg-open-soft text-open border-open/40",
+  alarm: "bg-alarm-soft text-alarm border-alarm/40",
+  muted: "bg-paper text-ink-soft border-line",
+  accent: "bg-accent-soft text-accent-deep border-accent/40",
 };
 
-export function Badge({ tone = "muted", children }: { tone?: Tone; children: ReactNode }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONE_CLASSES[tone]}`}
-    >
-      {children}
-    </span>
-  );
+/** 状態を一目で出す札。 */
+export function Pill({ tone = "muted", children }: { tone?: Tone; children: ReactNode }) {
+  return <span className={`pill ${PILL_TONES[tone]}`}>{children}</span>;
 }
 
-const PHASE_TONES: Record<Phase, string> = {
-  handshake: "bg-violet-500/10 text-violet-300 ring-violet-500/30",
-  certificate: "bg-sky-500/10 text-sky-300 ring-sky-500/30",
-  "key-exchange": "bg-teal-500/10 text-teal-300 ring-teal-500/30",
-  encryption: "bg-amber-500/10 text-amber-300 ring-amber-500/30",
-  https: "bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-500/30",
-};
-
-export function PhaseBadge({ phase }: { phase: Phase }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 font-mono text-[11px] ring-1 ring-inset ${PHASE_TONES[phase]}`}
-    >
-      {PHASE_LABELS[phase]}
-    </span>
-  );
-}
-
+/** 盤面に置く板。 */
 export function Panel({
   title,
-  subtitle,
+  hint,
   actions,
   children,
+  className = "",
 }: {
-  title: string;
-  subtitle?: ReactNode;
+  title?: string;
+  hint?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
+  // min-w-0 が要る。中に折り返せない等幅の 1 行があるため、これがないと
+  // グリッドの列が中身の幅まで広がり、画面ごと横スクロールしてしまう。
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900/40">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 px-5 py-4">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-          {subtitle && <p className="mt-1 max-w-2xl text-sm text-slate-400">{subtitle}</p>}
-        </div>
-        {actions}
-      </header>
-      <div className="px-5 py-4">{children}</div>
+    <section className={`panel flex min-w-0 flex-col ${className}`}>
+      {title && (
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft px-3.5 py-2.5">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h2 className="text-sm font-bold tracking-wide">{title}</h2>
+            {hint && <p className="text-xs text-ink-faint">{hint}</p>}
+          </div>
+          {actions}
+        </header>
+      )}
+      <div className="flex flex-1 flex-col p-3.5">{children}</div>
     </section>
   );
 }
 
-/** ON/OFF トグル 1 個。OFF のときは「危険な状態」として見た目を変える。 */
-export function Toggle({
+/** 押せるもの。 */
+export function Button({
+  onClick,
+  tone = "neutral",
+  disabled,
+  label,
+  title,
+  children,
+}: {
+  onClick: () => void;
+  tone?: "neutral" | "accent" | "alarm";
+  disabled?: boolean;
+  /** アイコンだけのボタンに付ける読み上げ用の名前。 */
+  label?: string;
+  title?: string;
+  children: ReactNode;
+}) {
+  const toneClass = { neutral: "", accent: "btn-accent", alarm: "btn-alarm" }[tone];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={title ?? label}
+      className={`btn ${toneClass}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * ON / OFF のスイッチ。
+ *
+ * checkbox のまま見た目だけ差し替えている（キーボード操作と読み上げをそのまま活かすため）。
+ */
+export function Switch({
   checked,
   onChange,
   label,
-  description,
-  attack,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
+  /** 読み上げ用の名前。画面には出さない。 */
   label: string;
-  description: string;
-  attack: string;
 }) {
   return (
-    <label
-      className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${
-        checked
-          ? "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-          : "border-rose-900/60 bg-rose-950/20 hover:border-rose-800"
-      }`}
-    >
+    <span className="relative inline-flex size-9 shrink-0 items-center justify-center">
       <input
         type="checkbox"
+        aria-label={label}
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-1 size-4 shrink-0 accent-emerald-500"
+        className="peer absolute inset-0 cursor-pointer appearance-none rounded-lg opacity-0"
       />
-      <span className="min-w-0">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-slate-200">{label}</span>
-          {!checked && <Badge tone="danger">OFF</Badge>}
-        </span>
-        <span className="mt-1 block text-xs leading-relaxed text-slate-400">{description}</span>
-        {!checked && (
-          <span className="mt-1.5 block text-xs leading-relaxed text-rose-300">
-            → {attack} が成立する
-          </span>
-        )}
+      <span
+        aria-hidden
+        className={`pointer-events-none h-5 w-9 rounded-full border-[1.5px] transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-accent peer-focus-visible:outline-offset-2 ${
+          checked ? "border-safe bg-safe" : "border-line bg-paper"
+        }`}
+      >
+        <span
+          className={`absolute top-1/2 size-3.5 -translate-y-1/2 rounded-full bg-card shadow-sm transition-all ${
+            checked ? "left-[1.15rem]" : "left-[0.15rem]"
+          }`}
+        />
       </span>
-    </label>
+    </span>
   );
 }
 
-/** キーと値を並べる表。値は等幅で、長ければ折り返す。 */
-export function DataList({ data }: { data: Record<string, string> }) {
-  const entries = Object.entries(data);
-  if (entries.length === 0) return null;
-  return (
-    <dl className="mt-3 grid gap-x-4 gap-y-1.5 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-      {entries.map(([key, value]) => (
-        <div key={key} className="contents">
-          <dt className="text-xs text-slate-500">{key}</dt>
-          <dd className="break-all font-mono text-xs text-slate-300">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** 等幅の枠付きテキスト（平文・暗号文の表示用）。 */
-export function Mono({ tone = "muted", children }: { tone?: Tone; children: ReactNode }) {
-  const border =
-    tone === "danger"
-      ? "border-rose-900/60 bg-rose-950/20 text-rose-200"
-      : tone === "ok"
-        ? "border-emerald-900/60 bg-emerald-950/20 text-emerald-200"
-        : "border-slate-800 bg-slate-950/60 text-slate-300";
+/** 等幅の 1 行。平文や 16 進をそのまま見せる。 */
+export function Wire({
+  tone = "muted",
+  clamp = false,
+  children,
+}: {
+  tone?: "muted" | "open" | "alarm" | "safe";
+  /** 1 行に収めて溢れは省略する（盤面用）。 */
+  clamp?: boolean;
+  children: ReactNode;
+}) {
+  const tones = {
+    muted: "border-line-soft bg-paper text-ink-soft",
+    open: "border-open/30 bg-open-soft text-open",
+    alarm: "border-alarm/30 bg-alarm-soft text-alarm",
+    safe: "border-safe/30 bg-safe-soft text-safe",
+  };
   return (
     <pre
-      className={`mt-2 overflow-x-auto rounded-md border px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all ${border}`}
+      className={`rounded-lg border px-2.5 py-1.5 font-mono text-[11px] leading-relaxed ${tones[tone]} ${
+        clamp ? "overflow-hidden text-ellipsis whitespace-nowrap" : "whitespace-pre-wrap break-all"
+      }`}
     >
       {children}
     </pre>
   );
 }
 
-/** 通信の向きを示す矢印。 */
-export function Arrow({ from, to }: { from: string; to: string }) {
-  if (from === to) {
-    return <span className="font-mono text-xs text-slate-500">{from} 内部処理</span>;
-  }
+/** キーと値を並べる表。実際に計算された値の表示用。 */
+export function DataList({ data }: { data: Record<string, string> }) {
+  const entries = Object.entries(data);
+  if (entries.length === 0) return null;
   return (
-    <span className="font-mono text-xs text-slate-400">
-      {from} <span className="text-slate-600">──▶</span> {to}
-    </span>
+    <dl className="mt-2 grid gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)]">
+      {entries.map(([key, value]) => (
+        <div key={key} className="contents">
+          <dt className="text-[11px] text-ink-faint">{key}</dt>
+          <dd className="mb-1 font-mono text-[11px] break-all text-ink-soft sm:mb-0">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * 開くと補足が出る小さな折りたたみ。閉じているときは 1 行しか占めない。
+ *
+ * 見た目を小さなボタンにしてあるのは、ただの文字だと押せることに気づかれないため。
+ */
+export function More({
+  summary,
+  children,
+  popover = false,
+}: {
+  summary: string;
+  children: ReactNode;
+  /**
+   * 開いた中身を浮かせる。
+   *
+   * 並びの中に置いた折りたたみは、開くと周りを押しのけてボタン自体が動いてしまう。
+   * 位置を動かしたくない場所ではこちらを使う。
+   */
+  popover?: boolean;
+}) {
+  return (
+    <details className={`group ${popover ? "relative" : ""}`}>
+      <summary className="inline-flex list-none items-center gap-1 rounded-lg border-[1.5px] border-line-soft bg-paper px-2 py-1 text-[11px] font-bold text-accent-deep transition-colors hover:border-accent/50 hover:text-accent [&::-webkit-details-marker]:hidden">
+        <svg
+          viewBox="0 0 24 24"
+          width="11"
+          height="11"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className="transition-transform group-open:rotate-90"
+        >
+          <path d="M9 5l7 7-7 7" />
+        </svg>
+        {summary}
+      </summary>
+      <div
+        className={
+          popover ? "absolute right-0 z-20 mt-1.5 w-[min(24rem,calc(100vw-2rem))]" : "mt-1.5"
+        }
+      >
+        {children}
+      </div>
+    </details>
   );
 }

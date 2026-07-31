@@ -1,1 +1,283 @@
 @import "tailwindcss";
+
+/*
+ * 明るい盤面のための色と字。
+ *
+ * 黒とグレーは使わず、濃紺 (ink) と青みのある紙 (paper) を基準にする。
+ * 5 つの層を 5 色に塗り分けることはしない（色数が増えるほど何が重要か分からなくなる）。
+ * 青は「操作できるもの・進んだところ」だけに使い、意味を持つ色は 3 つに絞る。
+ *
+ *   safe  … 封がされている / 防げている
+ *   open  … 平文で流れている（危険ではないが見えている）
+ *   alarm … 攻撃が通った / 接続が中止された
+ */
+@theme {
+  --color-ink: #17213d;
+  --color-ink-soft: #55648a;
+  --color-ink-faint: #8494b5;
+  --color-paper: #e9eff9;
+  --color-card: #ffffff;
+  --color-line: #b9c8e3;
+  --color-line-soft: #dbe4f3;
+
+  --color-accent: #2f62e8;
+  --color-accent-soft: #dde7ff;
+  --color-accent-deep: #1f43aa;
+
+  --color-safe: #0b8f66;
+  --color-safe-soft: #d4f2e4;
+  --color-open: #b46a06;
+  --color-open-soft: #fceecf;
+  --color-alarm: #cf3243;
+  --color-alarm-soft: #fcdfe2;
+
+  /* 丸みのある字面のほうが盤面に馴染む。手に入るものだけで組む（外部読み込みなし）。 */
+  --font-sans: ui-rounded, "Hiragino Maru Gothic ProN", "Hiragino Sans", "BIZ UDPGothic",
+    "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans Mono", monospace;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* 盤面のうっすらした方眼。紙の上に置いてある感じを出す。 */
+    background-image: linear-gradient(to right, rgb(23 33 61 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(23 33 61 / 0.045) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* 数字が縦に揃うところは等幅の数字にする。 */
+  code,
+  kbd,
+  pre,
+  samp {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  summary {
+    cursor: pointer;
+  }
+
+  summary::marker {
+    color: var(--color-ink-faint);
+  }
+}
+
+@layer components {
+  /* 盤面に置く板。厚みは影ではなく下辺の線で出す。 */
+  .panel {
+    background: var(--color-card);
+    border: 1.5px solid var(--color-line);
+    border-radius: 16px;
+    box-shadow: 0 2px 0 var(--color-line);
+  }
+
+  /* 押せるもの。押し込むと下辺が縮む。 */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 11px;
+    border: 1.5px solid var(--color-line);
+    background: var(--color-card);
+    color: var(--color-ink);
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    box-shadow: 0 2px 0 var(--color-line);
+    transition: transform 0.06s, box-shadow 0.06s, background-color 0.12s, border-color 0.12s;
+  }
+
+  .btn:hover:not(:disabled) {
+    border-color: var(--color-ink-faint);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: none;
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    box-shadow: none;
+    transform: translateY(2px);
+  }
+
+  .btn-accent {
+    background: var(--color-accent);
+    border-color: var(--color-accent-deep);
+    color: #fff;
+    box-shadow: 0 2px 0 var(--color-accent-deep);
+  }
+
+  .btn-accent:hover:not(:disabled) {
+    background: var(--color-accent-deep);
+    border-color: var(--color-accent-deep);
+  }
+
+  .btn-accent:active:not(:disabled) {
+    box-shadow: none;
+  }
+
+  .btn-alarm {
+    background: var(--color-alarm-soft);
+    border-color: var(--color-alarm);
+    color: #93202d;
+    box-shadow: 0 2px 0 var(--color-alarm);
+  }
+
+  /* 状態を一目で出す小さな札。 */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border: 1.5px solid transparent;
+    white-space: nowrap;
+  }
+}
+
+/*
+ * 封筒が経路の端から端まで渡っていく動き。
+ *
+ * left を 0%→100%、同時に translateX を 0→-100% と動かすと、位置は
+ * 「経路の幅 × t − 封筒の幅 × t」になる。どちらの幅も測らずに、ちょうど端から端まで
+ * 移動する（画面幅が変わっても崩れない）。
+ */
+@keyframes packet-right {
+  from {
+    left: 0%;
+    transform: translate(0, -50%) scale(0.86);
+    opacity: 0;
+  }
+  16% {
+    opacity: 1;
+    transform: translate(-16%, -50%) scale(1);
+  }
+  to {
+    left: 100%;
+    transform: translate(-100%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes packet-left {
+  from {
+    left: 100%;
+    transform: translate(-100%, -50%) scale(0.86);
+    opacity: 0;
+  }
+  16% {
+    opacity: 1;
+    transform: translate(-84%, -50%) scale(1);
+  }
+  to {
+    left: 0%;
+    transform: translate(0, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.packet-right {
+  animation: packet-right 1.05s cubic-bezier(0.35, 0, 0.25, 1) forwards;
+}
+
+.packet-left {
+  animation: packet-left 1.05s cubic-bezier(0.35, 0, 0.25, 1) forwards;
+}
+
+/* 経路の点線が流れる。通信中であることの気配。 */
+@keyframes wire-flow {
+  to {
+    background-position-x: 22px;
+  }
+}
+
+.wire-flow {
+  background-image: linear-gradient(to right, currentColor 0 10px, transparent 10px 22px);
+  background-size: 22px 100%;
+  background-repeat: repeat-x;
+  animation: wire-flow 0.7s linear infinite;
+}
+
+/* 逆向きに流れる（サーバーからクライアントへ）。 */
+.wire-flow-back {
+  animation-direction: reverse;
+}
+
+/* 手元で計算している間の脈打ち。 */
+@keyframes cranking {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cranking {
+  animation: cranking 3.2s linear infinite;
+}
+
+/* 盤面の表示が切り替わったことが分かる、ごく短い立ち上がり。 */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.28s ease-out;
+}
+
+/* 攻撃が通った枠を 2 回だけ光らせる。 */
+@keyframes alarm-flash {
+  0%,
+  100% {
+    box-shadow: 0 2px 0 var(--color-alarm);
+  }
+  50% {
+    box-shadow: 0 2px 0 var(--color-alarm), 0 0 0 5px rgb(207 50 67 / 0.18);
+  }
+}
+
+.alarm-flash {
+  animation: alarm-flash 0.9s ease-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .packet-right,
+  .packet-left,
+  .wire-flow,
+  .wire-flow-back,
+  .cranking,
+  .rise-in,
+  .alarm-flash {
+    animation: none;
+  }
+  .packet-right {
+    left: 100%;
+    transform: translate(-100%, -50%);
+  }
+  .packet-left {
+    left: 0%;
+    transform: translate(0, -50%);
+  }
+}
